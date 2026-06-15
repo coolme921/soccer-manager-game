@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Soccer Manager - AI Match Engine</title>
+
+<style>
+body {
+    font-family: Arial;
+    background: #0f172a;
+    color: white;
+    text-align: center;
+}
+
+h1 { color: #38bdf8; }
+
+.container {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 20px;
+}
+
+.box {
+    width: 45%;
+    background: #1e293b;
+    padding: 10px;
+    border-radius: 10px;
+}
+
+button {
+    padding: 6px 10px;
+    margin: 4px;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
+}
+
+.buy { background: #22c55e; }
+.sell { background: #ef4444; }
+.match { background: #3b82f6; }
+
+.player {
+    background: #334155;
+    margin: 5px;
+    padding: 8px;
+    border-radius: 8px;
+    text-align: left;
+}
+</style>
+</head>
+
+<body>
+
+<h1>⚽ Soccer Manager AI Engine</h1>
+<h3>💰 $<span id="money">1000</span> | ⭐ Rep: <span id="rep">1</span></h3>
+
+<button class="match" onclick="startMatch()">Start Match</button>
+<button onclick="nextStep()" id="nextBtn" disabled>Next ▶</button>
+
+<p id="commentary">Build your squad first.</p>
+
+<div class="container">
+
+<div class="box">
+<h2>Transfer Market</h2>
+<div id="market"></div>
+</div>
+
+<div class="box">
+<h2>Your Squad</h2>
+<div id="team"></div>
+</div>
+
+</div>
+
+<script>
+let money = 1000;
+let rep = 1;
+
+let team = [];
+let market = [];
+
+function randPos(){
+    return ["GK","DEF","MID","FWD"][Math.floor(Math.random()*4)];
+}
+
+// 🃏 PLAYER CARD SYSTEM
+function createPlayer(){
+    let rating = Math.floor(55 + Math.random()*40);
+
+    return {
+        name: "Player " + Math.floor(Math.random()*9999),
+        rating,
+        pos: randPos(),
+        price: rating * 6,
+        xp: 0,
+        level: 1,
+        form: Math.floor(Math.random()*10)
+    };
+}
+
+function refreshMarket(){
+    while(market.length < 6){
+        market.push(createPlayer());
+    }
+}
+refreshMarket();
+
+function updateUI(){
+    document.getElementById("money").innerText = money;
+    document.getElementById("rep").innerText = rep;
+
+    let marketHTML = "";
+    market.forEach((p,i)=>{
+        marketHTML += `
+        <div class="player">
+            ⭐ ${p.rating} | ${p.pos} (Lvl ${p.level})<br>
+            XP ${p.xp}/100 | Form ${p.form}/10<br>
+            💰 $${p.price}
+            <button class="buy" onclick="buy(${i})">Buy</button>
+        </div>`;
+    });
+
+    let teamHTML = "";
+    team.forEach((p,i)=>{
+        teamHTML += `
+        <div class="player">
+            ⭐ ${p.rating} | ${p.pos} (Lvl ${p.level})<br>
+            XP ${p.xp}/100 | Form ${p.form}/10
+            <button class="sell" onclick="sell(${i})">Sell</button>
+        </div>`;
+    });
+
+    document.getElementById("market").innerHTML = marketHTML;
+    document.getElementById("team").innerHTML = teamHTML;
+}
+
+function buy(i){
+    let p = market[i];
+    if(money >= p.price){
+        money -= p.price;
+        team.push(p);
+        market.splice(i,1);
+        refreshMarket();
+        updateUI();
+    }
+}
+
+function sell(i){
+    money += Math.floor(team[i].price * 0.6);
+    team.splice(i,1);
+    updateUI();
+}
+
+/* =========================
+   ⚽ REAL AI MATCH ENGINE
+========================= */
+
+let minute = 0;
+let zone = "MID";
+let userScore = 0;
+let oppScore = 0;
+let matchActive = false;
+
+function startMatch(){
+    if(team.length === 0){
+        document.getElementById("commentary").innerText = "Buy players first!";
+        return;
+    }
+
+    minute = 0;
+    zone = "MID";
+    userScore = 0;
+    oppScore = 0;
+    matchActive = true;
+
+    document.getElementById("commentary").innerText =
+    "Kickoff! ⚽";
+
+    document.getElementById("nextBtn").disabled = false;
+}
+
+function nextStep(){
+
+    minute += 10;
+
+    let teamPower = team.reduce((a,p)=>a + p.rating + p.level + p.form,0)/team.length;
+    let oppPower = 60 + Math.random()*50 + rep*2;
+
+    let event = "";
+
+    // 🧠 ZONE SYSTEM (FIXES MIDFIELD LOOP ISSUE)
+    let shift = (teamPower - oppPower) + (Math.random()*40 - 20);
+
+    if(shift > 25){
+        zone = "ATT";
+    } 
+    else if(shift > -10){
+        zone = "MID";
+    } 
+    else {
+        zone = "DEF";
+    }
+
+    // ⚽ ATTACK ZONE → REAL SHOTS
+    if(zone === "ATT"){
+        event = "Attack in final third";
+
+        if(Math.random() < 0.45){
+            event = "SHOT ON GOAL ⚽";
+
+            let striker = Math.max(...team.map(p=>p.rating));
+            let shotPower = striker + Math.random()*40;
+
+            let gkPower = 60 + Math.random()*50;
+
+            if(shotPower > gkPower){
+                userScore++;
+                event = "GOAL!!! 🔥🔥";
+            } else {
+                event = "SAVE by keeper 🧤";
+            }
+        }
+    }
+
+    // ⚽ MIDFIELD
+    else if(zone === "MID"){
+        event = "Midfield battle continues";
+    }
+
+    // ⚽ DEFENSIVE PRESSURE
+    else {
+        event = "Opposition attacking";
+
+        if(Math.random() < 0.25){
+            oppScore++;
+            event = "Goal conceded 😬";
+        }
+    }
+
+    document.getElementById("commentary").innerText =
+    `Minute ${minute}: ${event} | ${userScore}-${oppScore}`;
+
+    if(minute >= 90){
+        endMatch();
+    }
+}
+
+function levelPlayers(){
+    team.forEach(p=>{
+        p.xp += 25 + Math.random()*25;
+
+        if(p.xp >= 100){
+            p.level++;
+            p.rating++;
+            p.xp -= 100;
+        }
+    });
+}
+
+function endMatch(){
+    matchActive = false;
+    document.getElementById("nextBtn").disabled = true;
+
+    levelPlayers();
+
+    if(userScore > oppScore){
+        money += 300 * rep;
+        rep++;
+        document.getElementById("commentary").innerText += " — WIN 🏆";
+    }
+    else if(userScore < oppScore){
+        money -= 100;
+        document.getElementById("commentary").innerText += " — LOSS ❌";
+    }
+    else {
+        document.getElementById("commentary").innerText += " — DRAW 🤝";
+    }
+
+    refreshMarket();
+    updateUI();
+}
+
+updateUI();
+</script>
+
+</body>
+</html>
